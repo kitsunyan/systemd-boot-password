@@ -1,4 +1,4 @@
-AC_INIT([systemd-boot-password],[0.9.0.232])
+AC_INIT([systemd-boot-password],[0.9.1.232])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])

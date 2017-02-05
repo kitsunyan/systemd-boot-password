@@ -12,8 +12,8 @@ function hash() {
     printf "%s" "$password" | sha512sum | grep -Po [0-9a-fA-F]{128}
 }
 
-hash1=`hash "Enter password"`
-hash2=`hash "Retype password"`
+hash1=`hash "Enter password"` || exit 1
+hash2=`hash "Retype password"` || exit 1
 
 if [ "$hash1" == "$hash2" ]; then
     echo "password $hash1"
