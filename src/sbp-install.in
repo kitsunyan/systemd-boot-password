@@ -1,0 +1,44 @@
+#!/bin/bash
+
+BOOT_LIB_DIR="@BOOT_LIB_DIR@"
+EFI_MACHINE_TYPE_NAME="@EFI_MACHINE_TYPE_NAME@"
+
+esp="$1"
+
+[ "`id -u`" -eq 0 ] || {
+    echo "You should start this script as root." 1>&2
+    exit 1
+}
+
+[ -n "$esp" ] || {
+    echo "Please provide ESP path." 1>&2
+    exit 1
+}
+
+[ -d "$esp" ] || {
+    echo "ESP path is not a directory." 1>&2
+    exit 1
+}
+
+function bootmkdir() {
+    [ -d "$1" ] || mkdir -p "$1" || {
+        echo "$2" 1>&2
+        exit 1
+    }
+}
+
+bootmkdir "$esp/EFI/BOOT" "Can not create EFI/BOOT directory."
+bootmkdir "$esp/EFI/systemd" "Can not create EFI/systemd directory."
+
+function cpefi() {
+    cp "$BOOT_LIB_DIR/systemd-boot$EFI_MACHINE_TYPE_NAME.efi" "$1" || {
+        echo "Can not copy EFI application." 1>&2
+        exit 1
+    }
+}
+
+cpefi "$esp/EFI/BOOT/BOOT${EFI_MACHINE_TYPE_NAME^^}.EFI"
+cpefi "$esp/EFI/systemd/systemd-boot$EFI_MACHINE_TYPE_NAME.efi"
+
+echo "Success."
+exit 0
