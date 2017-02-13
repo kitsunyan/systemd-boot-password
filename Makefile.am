@@ -1,9 +1,12 @@
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
+bootlib_DATA =
 CLEANFILES =
 bin_SCRIPTS =
 
 bootlibdir = $(prefix)/lib/systemd/boot/efi-sbp
 installerdir = $(prefix)/bin
+
+# ------------------------------------------------------------------------------
 
 efi_cppflags = \
 	$(EFI_CPPFLAGS) \
@@ -98,8 +101,51 @@ $(top_builddir)/src/efi/%.o: $(top_srcdir)/src/efi/%.c $(addprefix $(top_srcdir)
 	@$(MKDIR_P) $(top_builddir)/src/efi/
 	$(CC) $(efi_cppflags) $(efi_cflags) -c $< -o $@
 
-bootlib_DATA = $(systemd_boot)
+bootlib_DATA += $(systemd_boot)
 CLEANFILES += $(systemd_boot_objects) $(systemd_boot_solib) $(systemd_boot)
+
+# ------------------------------------------------------------------------------
+
+systemd_boot_stub_headers = \
+	src/efi/util.h \
+	src/efi/pefile.h \
+	src/efi/disk.h \
+	src/efi/graphics.h \
+	src/efi/splash.h \
+	src/efi/measure.h \
+	src/efi/linux.h
+
+systemd_boot_stub_sources = \
+	src/efi/util.c \
+	src/efi/pefile.c \
+	src/efi/disk.c \
+	src/efi/graphics.c \
+	src/efi/splash.c \
+	src/efi/linux.c \
+	src/efi/measure.c \
+	src/efi/stub.c
+
+systemd_boot_stub_objects = $(addprefix $(top_builddir)/,$(systemd_boot_stub_sources:.c=.o))
+systemd_boot_stub_solib = $(top_builddir)/src/efi/systemd_boot_stub.so
+systemd_boot_stub = systemd-boot$(EFI_MACHINE_TYPE_NAME).efi.stub
+
+$(systemd_boot_stub): $(systemd_boot_stub_solib)
+	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic \
+	  -j .dynsym -j .rel -j .rela -j .reloc $(EFI_FORMAT) $< $@
+
+$(systemd_boot_stub_solib): $(systemd_boot_stub_objects)
+	$(LD) $(efi_ldflags) $(systemd_boot_stub_objects) \
+		-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name); \
+		nm -D -u $@ | grep ' U ' && exit 1 || :
+
+$(top_builddir)/src/efi/%.o: $(top_srcdir)/src/efi/%.c $(addprefix $(top_srcdir)/,$(systemd_boot_stub_headers))
+	@$(MKDIR_P) $(top_builddir)/src/efi/
+	$(EFI_CC) $(efi_cppflags) $(efi_cflags) -c $< -o $@
+
+bootlib_DATA += $(systemd_boot_stub)
+CLEANFILES += $(systemd_boot_stub_objects) $(systemd_boot_stub_solib) $(systemd_boot_stub)
+
+# ------------------------------------------------------------------------------
 
 installer = sbp-install
 
@@ -111,6 +157,8 @@ $(installer):
 
 bin_SCRIPTS += $(installer)
 CLEANFILES += $(installer)
+
+# ------------------------------------------------------------------------------
 
 generator = sbp-generate
 

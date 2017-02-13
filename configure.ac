@@ -45,13 +45,24 @@ AC_ARG_WITH(efi-includedir, AS_HELP_STRING([--with-efi-includedir=PATH], [Path t
 	[EFI_INC_DIR="$withval"], [EFI_INC_DIR="/usr/include"])
 AC_SUBST([EFI_INC_DIR])
 
+AC_ARG_ENABLE([secure-boot-password], AS_HELP_STRING([--disable-secure-boot-password],
+	[disallow password prompt with Secure Boot enabled]),
+	[case "${enableval}" in
+		yes) secure_boot_password=true ;;
+		no) secure_boot_password=false ;;
+		*) AC_MSG_ERROR([bad value ${enableval} for --disable-secure-boot-password]) ;;
+	esac], [secure_boot_password=true])
+AC_DEFINE_UNQUOTED([SECURE_BOOT_PASSWORD], `test ! "x$secure_boot_password" != "xfalse"; echo $?`,
+	[Define if Secure Boot password is allowed])
+
 AC_OUTPUT
 AC_MSG_RESULT([
 $PACKAGE_NAME $VERSION
 prefix: ${prefix}
-arch: $ARCH
+arch: $EFI_ARCH
 EFI machine type: $MACHINE_TYPE_NAME
 EFI libdir: ${EFI_LIB_DIR}
 EFI ldsdir: ${EFI_LDS_DIR}
 EFI includedir: ${EFI_INC_DIR}
+Allow Secure Boot password: ${secure_boot_password}
 ])
