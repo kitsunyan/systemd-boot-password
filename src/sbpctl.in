@@ -1,0 +1,154 @@
+#!/bin/bash
+
+BOOT_LIB_DIR="@BOOT_LIB_DIR@"
+EFI_MACHINE_TYPE_NAME="@EFI_MACHINE_TYPE_NAME@"
+
+function hash() {
+    printf "%s: " "$1" 1>&2
+    read -s password
+    echo 1>&2
+    filtered=`echo "$password" | grep -Po '[\x00-\x7f]*'`
+    [ "$password" == "$filtered" ] || {
+        echo "Only non-unicode characters are allowed." 1>&2
+        return 1
+    }
+    printf "%s" "$password" | sha512sum | grep -Po [0-9a-fA-F]{128}
+}
+
+function checkroot() {
+    [ "`id -u`" -eq 0 ] || {
+        echo "You should start this script as root." 1>&2
+        return 1
+    }
+}
+
+case "$1" in
+    generate)
+        hash1=`hash "Enter password"` || exit 1
+        hash2=`hash "Retype password"` || exit 1
+        if [ "$hash1" == "$hash2" ]; then
+            echo "password $hash1"
+            exit 0
+        else
+            echo "Passwords do not match." 1>&2
+            exit 1
+        fi
+        ;;
+    install)
+        shift
+        checkroot || exit 1
+        default=
+        include=
+        sign=
+        esp=
+        while arg="$1"; shift; do
+            case "$arg" in
+                --default)
+                    default=1
+                    ;;
+                --include)
+                    include=1
+                    ;;
+                --sign)
+                    sign=1
+                    ;;
+                --*)
+                    echo "Unknown attribute: \"$arg\"." 1>&2
+                    exit 1
+                    ;;
+                -*)
+                    [ "$arg" == "-" ] && {
+                        echo "Unknown attribute: \"$arg\"." 1>&2
+                        exit 1
+                    }
+                    while arg="${arg:1}"; [ -n "$arg" ]; do
+                        case "${arg:0:1}" in
+                            d)
+                                default=1
+                                ;;
+                            i)
+                                include=1
+                                ;;
+                            s)
+                                sign=1
+                                ;;
+                            *)
+                                echo "Unknown attribute: \"$arg\"." 1>&2
+                                exit 1
+                        esac
+                    done
+                    ;;
+                *)
+                    esp="$arg"
+                    ;;
+            esac
+        done
+        config="/etc/sbp/loader.conf"
+        [ -n "$include" ] && {
+            [ -e "$config" ] || {
+                echo "$config not exists." 1>&2
+                exit 1
+            }
+        }
+        dbkey="/etc/sbp/db.key"
+        dbcert="/etc/sbp/db.crt"
+        [ -n "$sign" ] && {
+            which sbsign > /dev/null 2> /dev/null || {
+                echo "sbsign is not found." 1>&2
+                exit 1
+            }
+            for f in "$dbkey" "$dbcert"; do
+                [ -f "$f" ] || {
+                    echo "$f not exists." 1>&2
+                    exit 1
+                }
+            done
+        }
+        [ -n "$esp" ] || {
+            echo "Please provide ESP path." 1>&2
+            exit 1
+        }
+        [ -d "$esp" ] || {
+            echo "ESP path is not a directory." 1>&2
+            exit 1
+        }
+        efi="$BOOT_LIB_DIR/systemd-boot$EFI_MACHINE_TYPE_NAME.efi"
+        function bootmkdir() {
+            [ -d "$1" ] || mkdir -p "$1" || {
+                echo "$2" 1>&2
+                exit 1
+            }
+        }
+        bootmkdir "$esp/EFI/BOOT" "Can not create EFI/BOOT directory."
+        default_efi="$esp/EFI/BOOT/BOOT${EFI_MACHINE_TYPE_NAME^^}.EFI"
+        [ -n "$include" ] && {
+            objcopy --add-section .config="$config" --change-section-vma .config=0x20000 \
+                "$efi" "$default_efi" || {
+                echo "Can not copy EFI application." 1>&2
+                exit 1
+            }
+        } || {
+            cp "$efi" "$default_efi" || {
+                echo "Can not copy EFI application." 1>&2
+                exit 1
+            }
+        }
+        [ -n "$sign" ] && {
+            sbsign --key "$dbkey" --cert "$dbcert" --output "$default_efi" "$default_efi" || {
+                echo "Can not sign EFI application." 1>&2
+                exit 1
+            }
+        }
+        [ -z "$default" ] && {
+            bootmkdir "$esp/EFI/systemd" "Can not create EFI/systemd directory."
+            cp "$default_efi" "$esp/EFI/systemd/systemd-boot$EFI_MACHINE_TYPE_NAME.efi" || {
+                echo "Can not copy EFI application." 1>&2
+                exit 1
+            }
+        }
+        echo "Success."
+        ;;
+    *)
+        [ -n "$1" ] && echo "Unknown command: \"$1\"." 1>&2 || echo "No attributes provided." 1>&2
+        ;;
+esac

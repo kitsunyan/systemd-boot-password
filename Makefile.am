@@ -1,7 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 bootlib_DATA =
-CLEANFILES =
 bin_SCRIPTS =
+CLEANFILES =
 
 bootlibdir = $(prefix)/lib/systemd/boot/efi-sbp
 installerdir = $(prefix)/bin
@@ -147,23 +147,13 @@ CLEANFILES += $(systemd_boot_stub_objects) $(systemd_boot_stub_solib) $(systemd_
 
 # ------------------------------------------------------------------------------
 
-installer = sbp-install
+ctl = sbpctl
 
-$(installer):
-	cat $(top_srcdir)/src/sbp-install.in \
+$(ctl):
+	cat $(top_srcdir)/src/sbpctl.in \
 		| sed "s/\@BOOT_LIB_DIR\@/`echo $(bootlibdir) | sed 's/\\//\\\\\\//g'`/g" \
 		| sed "s/\@EFI_MACHINE_TYPE_NAME\@/`echo $(EFI_MACHINE_TYPE_NAME) | sed 's/\\//\\\\\\//g'`/g" \
-		> $(installer) && chmod a+x $(installer)
+		> $(ctl) && chmod a+x $(ctl)
 
-bin_SCRIPTS += $(installer)
-CLEANFILES += $(installer)
-
-# ------------------------------------------------------------------------------
-
-generator = sbp-generate
-
-$(generator):
-	cp $(top_srcdir)/src/sbp-generate $(generator) && chmod a+x $(generator)
-
-bin_SCRIPTS += $(generator)
-CLEANFILES += $(generator)
+bin_SCRIPTS += $(ctl)
+CLEANFILES += $(ctl)
