@@ -1239,14 +1239,26 @@ static UINTN config_entry_add_from_file(Config *config, EFI_HANDLE *device, CHAR
         return pos;
 }
 
-static VOID config_load_defaults(Config *config, EFI_HANDLE *device, EFI_FILE *root_dir, CHAR16 *loaded_image_path) {
+static VOID config_load_defaults(Config *config, EFI_HANDLE *device, EFI_FILE *root_dir, CHAR16 *loaded_image_path, VOID *image_base) {
         CHAR8 *content = NULL;
         UINTN sec;
-        UINTN len;
+        UINTN len = 0;
         UINTN pos = 0;
         EFI_STATUS err;
+        CHAR8 *sections[] = {
+                (CHAR8 *)".config",
+                NULL
+        };
+        UINTN addr;
 
-        len = file_read(root_dir, L"\\loader\\loader.conf", 0, 0, &content);
+        err = pefile_locate_sections(root_dir, loaded_image_path, sections, &addr, NULL, &len);
+        if (!EFI_ERROR(err) && len > 0) {
+                content = AllocatePool(len + 1);
+                CopyMem(content, image_base + addr, len);
+                content[len] = '\0';
+        } else {
+                len = file_read(root_dir, L"\\loader\\loader.conf", 0, 0, &content);
+        }
         if (len > 0) {
                 UINTN end = config_defaults_load_from_file(config, content);
                 UINTN index = 0;
@@ -1868,7 +1880,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
         efivar_set(L"LoaderImageIdentifier", loaded_image_path, FALSE);
 
         ZeroMem(&config, sizeof(Config));
-        config_load_defaults(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path);
+        config_load_defaults(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path, loaded_image->ImageBase);
 
         /* if no entries were load from loader.conf */
         if (config.entry_count == 0) {
