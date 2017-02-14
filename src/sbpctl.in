@@ -3,6 +3,12 @@
 BOOT_LIB_DIR="@BOOT_LIB_DIR@"
 EFI_MACHINE_TYPE_NAME="@EFI_MACHINE_TYPE_NAME@"
 
+EFI_DEFAULT="/EFI/BOOT/BOOT${EFI_MACHINE_TYPE_NAME^^}.EFI"
+EFI_SYSTEMD="/EFI/systemd/systemd-boot$EFI_MACHINE_TYPE_NAME.efi"
+
+DB_KEY="/etc/sbp/db.key"
+DB_CERT="/etc/sbp/db.crt"
+
 function hash() {
     printf "%s: " "$1" 1>&2
     read -s password
@@ -18,6 +24,26 @@ function hash() {
 function checkroot() {
     [ "`id -u`" -eq 0 ] || {
         echo "You should start this script as root." 1>&2
+        return 1
+    }
+}
+
+function checksign() {
+    which sbsign > /dev/null 2> /dev/null || {
+        echo "sbsign is not found." 1>&2
+        return 1
+    }
+    for f in "$DB_KEY" "$DB_CERT"; do
+        [ -f "$f" ] || {
+            echo "$f not exists." 1>&2
+            return 1
+        }
+    done
+}
+
+function sign() {
+    sbsign --key "$DB_KEY" --cert "$DB_CERT" --output "$1" "$1" || {
+        echo "Can not sign EFI application." 1>&2
         return 1
     }
 }
@@ -90,19 +116,8 @@ case "$1" in
                 exit 1
             }
         }
-        dbkey="/etc/sbp/db.key"
-        dbcert="/etc/sbp/db.crt"
         [ -n "$sign" ] && {
-            which sbsign > /dev/null 2> /dev/null || {
-                echo "sbsign is not found." 1>&2
-                exit 1
-            }
-            for f in "$dbkey" "$dbcert"; do
-                [ -f "$f" ] || {
-                    echo "$f not exists." 1>&2
-                    exit 1
-                }
-            done
+            checksign || exit 1
         }
         [ -n "$esp" ] || {
             echo "Please provide ESP path." 1>&2
@@ -114,39 +129,84 @@ case "$1" in
         }
         efi="$BOOT_LIB_DIR/systemd-boot$EFI_MACHINE_TYPE_NAME.efi"
         function bootmkdir() {
-            [ -d "$1" ] || mkdir -p "$1" || {
+            dir=`dirname "$1"`
+            [ -d "$dir" ] || mkdir -p "$dir" || {
                 echo "$2" 1>&2
                 exit 1
             }
         }
-        bootmkdir "$esp/EFI/BOOT" "Can not create EFI/BOOT directory."
-        default_efi="$esp/EFI/BOOT/BOOT${EFI_MACHINE_TYPE_NAME^^}.EFI"
+        bootmkdir "$esp$EFI_DEFAULT" "Can not create EFI/BOOT directory."
         [ -n "$include" ] && {
             objcopy --add-section .config="$config" --change-section-vma .config=0x20000 \
-                "$efi" "$default_efi" || {
+                "$efi" "$esp$EFI_DEFAULT" || {
                 echo "Can not copy EFI application." 1>&2
                 exit 1
             }
         } || {
-            cp "$efi" "$default_efi" || {
+            cp "$efi" "$esp$EFI_DEFAULT" || {
                 echo "Can not copy EFI application." 1>&2
                 exit 1
             }
         }
         [ -n "$sign" ] && {
-            sbsign --key "$dbkey" --cert "$dbcert" --output "$default_efi" "$default_efi" || {
-                echo "Can not sign EFI application." 1>&2
-                exit 1
-            }
+            sign "$esp$EFI_DEFAULT" || exit 1
         }
         [ -z "$default" ] && {
-            bootmkdir "$esp/EFI/systemd" "Can not create EFI/systemd directory."
-            cp "$default_efi" "$esp/EFI/systemd/systemd-boot$EFI_MACHINE_TYPE_NAME.efi" || {
+            bootmkdir "$esp$EFI_SYSTEMD" "Can not create EFI/systemd directory."
+            cp "$esp$EFI_DEFAULT" "$esp$EFI_SYSTEMD" || {
                 echo "Can not copy EFI application." 1>&2
                 exit 1
             }
         }
         echo "Success."
+        ;;
+    standalone)
+        shift
+        sign=
+        initrd=
+        efi=
+        output=
+        while arg="$1"; shift; do
+            case "$arg" in
+                --sign|-s)
+                    sign=1
+                    ;;
+                -*)
+                    echo "Unknown attribute: \"$arg\"." 1>&2
+                    exit 1
+                    ;;
+                *)
+                    [ -n "$initrd" ] && {
+                        [ -n "$efi" ] && {
+                            [ -n "$output" ] && {
+                                echo "Too many arguments." 1>&2
+                                exit 1
+                            } || {
+                                output="$arg"
+                            }
+                        } || {
+                            efi="$arg"
+                        }
+                    } || {
+                        initrd="$arg"
+                    }
+                    ;;
+            esac
+        done
+        [ -n "$initrd" ] && [ -n "$efi" ] && [ -n "$output" ] || {
+            echo "Not enough arguments." 1>&2
+            exit 1
+        }
+        [ -n "$sign" ] && {
+            checksign || exit 1
+        }
+        objcopy --add-section .linux="$efi" --change-section-vma .linux=0x40000 \
+            --add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000 \
+            "$BOOT_LIB_DIR/systemd-boot$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" ||
+            echo "Can not create EFI application." 1>&2
+        [ -n "$sign" ] && {
+            sign "$output" || exit 1
+        }
         ;;
     *)
         [ -n "$1" ] && echo "Unknown command: \"$1\"." 1>&2 || echo "No attributes provided." 1>&2
