@@ -1,0 +1,291 @@
+<?xml version='1.0'?>
+<refentry id="sbpctl">
+  <refmeta>
+    <refentrytitle>sbpctl</refentrytitle>
+    <manvolnum>1</manvolnum>
+  </refmeta>
+
+  <refnamediv>
+    <refname>sbpctl</refname>
+    <refpurpose>Control the boot manager installation</refpurpose>
+  </refnamediv>
+
+  <refentryinfo>
+    <title>sbpctl</title>
+    <productname>systemd-boot-password</productname>
+
+    <authorgroup>
+      <author>
+        <contrib>kitsunyan</contrib>
+        <email>kitsunyan@inbox.ru</email>
+      </author>
+    </authorgroup>
+  </refentryinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>sbpctl</command>
+      <arg choice="req">install</arg>
+      <arg choice="opt" rep="repeat">option</arg>
+      <arg>path</arg>
+    </cmdsynopsis>
+
+    <cmdsynopsis>
+      <command>sbpctl</command>
+      <arg choice="req">standalone</arg>
+      <arg choice="opt" rep="repeat">option</arg>
+      <arg choice="req">initrd</arg>
+      <arg choice="req">efi</arg>
+      <arg choice="req">output</arg>
+    </cmdsynopsis>
+
+    <cmdsynopsis>
+      <command>sbpctl</command>
+      <arg choice="req">generate</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>
+      <command>sbpctl install</command> installs systemd-boot-password into the EFI system partition.
+      systemd-boot-password will be installed as default EFI loader at <filename>/EFI/BOOT/BOOT*.EFI</filename>.
+    </para>
+
+    <para>
+      <command>sbpctl standalone</command> creates a standalone EFI application
+      with initramfs and Linux EFI application included.
+    </para>
+
+    <para>
+      <command>sbpctl generate</command> prompts for password and generates a SHA-512 hash sum
+      which you can add to the basic configuration file.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>Installation options</title>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>-i</option>, <option>--include</option></term>
+        <listitem>
+          <para>
+            Include configuration file to EFI binary. In this case boot manager
+            will never read configuration from file.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-d</option>, <option>--default</option></term>
+        <listitem>
+          <para>
+            Boot manager will be installed only as default EFI loader at
+            <filename>/EFI/BOOT/BOOT*.EFI</filename>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-s</option>, <option>--sign</option></term>
+        <listitem>
+          <para>
+            Boot manager will be signed with keys located at
+            <filename>/etc/sbp/db.key</filename> and <filename>/etc/sbp/db.crt</filename>
+            using <command>sbsign</command> util.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>path</option></term>
+        <listitem>
+          <para>Path to the EFI System Partition (ESP).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Standalone options</title>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>-s</option>, <option>--sign</option></term>
+        <listitem>
+          <para>
+            EFI application will be signed with keys located at
+            <filename>/etc/sbp/db.key</filename> and <filename>/etc/sbp/db.crt</filename>
+            using <command>sbsign</command> util.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>initrd</option></term>
+        <listitem>
+          <para>Path to Linux initramfs.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>efi</option></term>
+        <listitem>
+          <para>Path to Linux EFI application.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>output</option></term>
+        <listitem>
+          <para>Path to output EFI application.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Configuration files</title>
+
+    <para>
+      The basic configuration file is located at <filename>/loader/loader.conf</filename>
+      of your EFI system partition or at <filename>/etc/sbp/loader.conf</filename> if
+      you planning include configuration to EFI binary.
+      The basic confguration file supports the following options:
+    </para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>default</option></term>
+        <listitem>
+          <para>
+            Default entry to select. This options can take a name of entity
+            configuration file or <replaceable>entryINDEX</replaceable>
+            if entry is included to basic configuration file.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>timeout</option></term>
+        <listitem>
+          <para>
+            Menu timeout. Can take a <replaceable>0</replaceable> value, in this case menu will be shown
+            on <command>Esc</command> key press during boot process.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>editor</option></term>
+        <listitem>
+          <para>
+            Defines whether enable the kernel parameters editor with <command>e</command> key.
+            A <replaceable>1</replaceable> value enables editor, <replaceable>0</replaceable> disables.
+            Editor is enabled by default.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>password</option></term>
+        <listitem>
+          <para>
+            A SHA-512 hash sum of password. User will be prompted for password to access
+            kernel parameters editor.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>
+      Boot entry configuration files are located at <filename>/loader/entries/*.conf</filename>
+      of your EFI system partition or can be included to basic configuration file divided by empty line.
+      The boot entry confguration file supports the following options:
+    </para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>title</option></term>
+        <listitem>
+          <para>
+            Entry title to display.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>version</option></term>
+        <listitem>
+          <para>
+            Version displayed for non-unique entries.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>machine-id</option></term>
+        <listitem>
+          <para>
+            Machine ID displayed for non-unique entries.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>efi</option></term>
+        <listitem>
+          <para>
+            EFI program to start.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>linux</option></term>
+        <listitem>
+          <para>
+            EFI program to start. This will also automatically add <option>initrd</option> option
+            to kernel parameters.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>initrd</option></term>
+        <listitem>
+          <para>
+            Path to initramfs.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>architecture</option></term>
+        <listitem>
+          <para>
+            EFI image architecture. Allows to filter EFI images not matching your architecture.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>options</option></term>
+        <listitem>
+          <para>
+            Default kernel parameters. These options may be changed with enabled editor.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Exit status</title>
+    <para>
+      On success, 0 is returned, a non-zero failure code otherwise.
+    </para>
+  </refsect1>
+</refentry>

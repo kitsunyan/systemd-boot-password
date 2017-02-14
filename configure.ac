@@ -28,7 +28,7 @@ AC_SUBST([EFI_ARCH])
 AC_SUBST([EFI_MACHINE_TYPE_NAME])
 
 AC_CHECK_HEADERS(efi/${EFI_ARCH}/efibind.h, [AC_DEFINE(HAVE_GNUEFI, 1, [Define if gnuefi is available]) have_gnuefi=yes],
-	[AC_MSG_ERROR([*** gnuefi support requested but headers not found])])
+	[AC_MSG_ERROR([*** gnuefi is required])])
 efiroot=$(echo $(cd /usr/lib/$(${CC} -print-multi-os-directory); pwd))
 EFI_LIB_DIR="$efiroot"
 AC_ARG_WITH(efi-libdir,	AS_HELP_STRING([--with-efi-libdir=PATH], [Path to EFI lib directory]),
@@ -40,10 +40,13 @@ AC_ARG_WITH(efi-ldsdir, AS_HELP_STRING([--with-efi-ldsdir=PATH], [Path to EFI ld
 	[AS_FOR([DIR], [EFI_LDS_DIR], ["${EFI_LIB_DIR}/gnuefi" "${EFI_LIB_DIR}"],
 	[AS_IF([test -f "${EFI_LDS_DIR}/elf_${EFI_ARCH}_efi.lds"], [have_efi_lds=yes && break])])])
 AS_IF([test "x$have_efi_lds" = xyes], [AC_SUBST([EFI_LDS_DIR])],
-	[AC_MSG_ERROR([*** gnuefi support requested but files not found2])])
+	[AC_MSG_ERROR([*** gnuefi is required])])
 AC_ARG_WITH(efi-includedir, AS_HELP_STRING([--with-efi-includedir=PATH], [Path to EFI include directory]),
 	[EFI_INC_DIR="$withval"], [EFI_INC_DIR="/usr/include"])
 AC_SUBST([EFI_INC_DIR])
+
+AC_PATH_PROG([XSLTPROC], [xsltproc])
+AS_IF([test -z "$XSLTPROC"], AC_MSG_ERROR([*** xsltproc is required]))
 
 AC_ARG_ENABLE([secure-boot-password], AS_HELP_STRING([--disable-secure-boot-password],
 	[disallow password prompt with Secure Boot enabled]),

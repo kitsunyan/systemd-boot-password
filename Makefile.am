@@ -1,6 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 bootlib_DATA =
 bin_SCRIPTS =
+EXTRA_DIST =
 CLEANFILES =
 
 bootlibdir = $(prefix)/lib/systemd/boot/efi-sbp
@@ -157,3 +158,22 @@ $(ctl):
 
 bin_SCRIPTS += $(ctl)
 CLEANFILES += $(ctl)
+
+# ------------------------------------------------------------------------------
+
+man_MANS = \
+	man/sbpctl.1
+
+EXTRA_DIST += \
+	man/sbpctl.xml
+
+XSLTPROC_FLAGS = \
+	--nonet \
+	--stringparam man.authors.section.enabled 0 \
+	--stringparam man.copyright.section.enabled 0
+
+man/%.1: man/%.xml
+	$(XSLTPROC) -o $@ $(XSLTPROC_FLAGS) \
+		http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
+
+CLEANFILES += $(man_MANS)
