@@ -1024,7 +1024,7 @@ skip:
 
         /* empty line */
         if (linelen == 0)
-                goto skip;
+                return NULL;
 
         /* terminate line */
         line[linelen] = '\0';
@@ -1065,7 +1065,7 @@ skip:
         return line;
 }
 
-static VOID config_defaults_load_from_file(Config *config, CHAR8 *content) {
+static UINTN config_defaults_load_from_file(Config *config, CHAR8 *content) {
         CHAR8 *line;
         UINTN pos = 0;
         CHAR8 *key, *value;
@@ -1105,9 +1105,11 @@ static VOID config_defaults_load_from_file(Config *config, CHAR8 *content) {
                         }
                 }
         }
+
+        return pos;
 }
 
-static VOID config_entry_add_from_file(Config *config, EFI_HANDLE *device, CHAR16 *file, CHAR8 *content, CHAR16 *loaded_image_path) {
+static UINTN config_entry_add_from_file(Config *config, EFI_HANDLE *device, CHAR16 *file, CHAR8 *content, CHAR16 *loaded_image_path) {
         ConfigEntry *entry;
         CHAR8 *line;
         UINTN pos = 0;
@@ -1206,7 +1208,7 @@ static VOID config_entry_add_from_file(Config *config, EFI_HANDLE *device, CHAR1
                 config_entry_free(entry);
                 FreePool(initrd);
                 FreePool(entry);
-                return;
+                return pos;
         }
 
         /* add initrd= to options */
@@ -1233,17 +1235,30 @@ static VOID config_entry_add_from_file(Config *config, EFI_HANDLE *device, CHAR1
         StrLwr(entry->file);
 
         config_add_entry(config, entry);
+
+        return pos;
 }
 
-static VOID config_load_defaults(Config *config, EFI_FILE *root_dir) {
+static VOID config_load_defaults(Config *config, EFI_HANDLE *device, EFI_FILE *root_dir, CHAR16 *loaded_image_path) {
         CHAR8 *content = NULL;
         UINTN sec;
         UINTN len;
+        UINTN pos = 0;
         EFI_STATUS err;
 
         len = file_read(root_dir, L"\\loader\\loader.conf", 0, 0, &content);
-        if (len > 0)
-                config_defaults_load_from_file(config, content);
+        if (len > 0) {
+                UINTN end = config_defaults_load_from_file(config, content);
+                UINTN index = 0;
+                pos += end;
+                while (len > pos) {
+                        CHAR16 *file_name = PoolPrint(L"entry%d.conf", index++);
+                        end = config_entry_add_from_file(config, device, file_name,
+                                content + pos, loaded_image_path);
+                        pos += end;
+                        FreePool(file_name);
+                }
+        }
         FreePool(content);
 
         err = efivar_get_int(L"LoaderConfigTimeout", &sec);
@@ -1853,13 +1868,16 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
         efivar_set(L"LoaderImageIdentifier", loaded_image_path, FALSE);
 
         ZeroMem(&config, sizeof(Config));
-        config_load_defaults(&config, root_dir);
+        config_load_defaults(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path);
 
-        /* scan /EFI/Linux/ directory */
-        config_entry_add_linux(&config, loaded_image, root_dir);
+        /* if no entries were load from loader.conf */
+        if (config.entry_count == 0) {
+                /* scan /EFI/Linux/ directory */
+                config_entry_add_linux(&config, loaded_image, root_dir);
 
-        /* scan /loader/entries/\*.conf files */
-        config_load_entries(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path);
+                /* scan /loader/entries/\*.conf files */
+                config_load_entries(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path);
+        }
 
         /* sort entries after version number */
         config_sort_entries(&config);
