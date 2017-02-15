@@ -27,7 +27,7 @@
       <command>sbpctl</command>
       <arg choice="req">install</arg>
       <arg choice="opt" rep="repeat">option</arg>
-      <arg>path</arg>
+      <arg choice="req">path</arg>
     </cmdsynopsis>
 
     <cmdsynopsis>
