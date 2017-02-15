@@ -95,8 +95,8 @@ $(systemd_boot): $(systemd_boot_solib)
 
 $(systemd_boot_solib): $(systemd_boot_objects)
 	$(LD) $(efi_ldflags) $(systemd_boot_objects) \
-		-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name); \
-		nm -D -u $@ | grep ' U ' && exit 1 || :
+		-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name);
+	nm -D -u $@ | grep ' U ' && exit 1 || :
 
 $(top_builddir)/src/efi/%.o: $(top_srcdir)/src/efi/%.c $(addprefix $(top_srcdir)/,$(systemd_boot_headers))
 	@$(MKDIR_P) $(top_builddir)/src/efi/
@@ -136,8 +136,8 @@ $(systemd_boot_stub): $(systemd_boot_stub_solib)
 
 $(systemd_boot_stub_solib): $(systemd_boot_stub_objects)
 	$(LD) $(efi_ldflags) $(systemd_boot_stub_objects) \
-		-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name); \
-		nm -D -u $@ | grep ' U ' && exit 1 || :
+		-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name);
+	nm -D -u $@ | grep ' U ' && exit 1 || :
 
 $(top_builddir)/src/efi/%.o: $(top_srcdir)/src/efi/%.c $(addprefix $(top_srcdir)/,$(systemd_boot_stub_headers))
 	@$(MKDIR_P) $(top_builddir)/src/efi/
@@ -151,10 +151,10 @@ CLEANFILES += $(systemd_boot_stub_objects) $(systemd_boot_stub_solib) $(systemd_
 ctl = sbpctl
 
 $(ctl):
-	cat $(top_srcdir)/src/sbpctl.in \
-		| sed "s/\@BOOT_LIB_DIR\@/`echo $(bootlibdir) | sed 's/\\//\\\\\\//g'`/g" \
-		| sed "s/\@EFI_MACHINE_TYPE_NAME\@/`echo $(EFI_MACHINE_TYPE_NAME) | sed 's/\\//\\\\\\//g'`/g" \
-		> $(ctl) && chmod a+x $(ctl)
+	sed -e 's,[@]BOOT_LIB_DIR[@],$(bootlibdir),g' \
+		-e 's,[@]EFI_MACHINE_TYPE_NAME[@],$(EFI_MACHINE_TYPE_NAME),g' \
+		< $(top_srcdir)/src/sbpctl.in > $(ctl)
+	chmod a+x $(ctl)
 
 bin_SCRIPTS += $(ctl)
 CLEANFILES += $(ctl)
