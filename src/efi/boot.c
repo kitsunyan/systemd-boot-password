@@ -1646,7 +1646,9 @@ static VOID config_entry_add_linux( Config *config, EFI_LOADED_IMAGE *loaded_ima
                         UINTN pos = 0;
                         CHAR8 *key, *value;
                         CHAR16 *os_name = NULL;
+                        CHAR16 *os_pretty_name = NULL;
                         CHAR16 *os_id = NULL;
+                        CHAR16 *os_id_like = NULL;
                         CHAR16 *os_version = NULL;
                         CHAR16 *os_build = NULL;
 
@@ -1678,15 +1680,27 @@ static VOID config_entry_add_linux( Config *config, EFI_LOADED_IMAGE *loaded_ima
                         /* read properties from the embedded os-release file */
                         line = content;
                         while ((line = line_get_key_value(content, (CHAR8 *)"=", &pos, &key, &value))) {
-                                if (strcmpa((CHAR8 *)"PRETTY_NAME", key) == 0) {
+                                if (strcmpa((CHAR8 *)"NAME", key) == 0) {
                                         FreePool(os_name);
                                         os_name = stra_to_str(value);
+                                        continue;
+                                }
+
+                                if (strcmpa((CHAR8 *)"PRETTY_NAME", key) == 0) {
+                                        FreePool(os_pretty_name);
+                                        os_pretty_name = stra_to_str(value);
                                         continue;
                                 }
 
                                 if (strcmpa((CHAR8 *)"ID", key) == 0) {
                                         FreePool(os_id);
                                         os_id = stra_to_str(value);
+                                        continue;
+                                }
+
+                                if (strcmpa((CHAR8 *)"ID_LIKE", key) == 0) {
+                                        FreePool(os_id_like);
+                                        os_id_like = stra_to_str(value);
                                         continue;
                                 }
 
@@ -1703,14 +1717,18 @@ static VOID config_entry_add_linux( Config *config, EFI_LOADED_IMAGE *loaded_ima
                                 }
                         }
 
-                        if (os_name && os_id && (os_version || os_build)) {
-                                CHAR16 *conf;
+                        if ((os_name || os_pretty_name) && (os_id || os_id_like)) {
+                                CHAR16 *file;
                                 CHAR16 *path;
                                 CHAR16 *cmdline;
 
-                                conf = PoolPrint(L"%s-%s", os_id, os_version ? : os_build);
+                                if (os_version || os_build)
+                                        file = PoolPrint(L"%s-%s", os_id ? os_id : os_id_like, os_version ? : os_build);
+                                else
+                                        file = PoolPrint(L"%s", os_id ? os_id : os_id_like);
                                 path = PoolPrint(L"\\EFI\\Linux\\%s", f->FileName);
-                                entry = config_entry_add_loader(config, loaded_image->DeviceHandle, LOADER_LINUX, conf, 'l', os_name, path);
+                                entry = config_entry_add_loader(config, loaded_image->DeviceHandle, LOADER_LINUX,
+                                        file, 'l', os_pretty_name ? os_pretty_name : os_name, path);
 
                                 FreePool(content);
                                 /* read the embedded cmdline file */
@@ -1721,12 +1739,14 @@ static VOID config_entry_add_linux( Config *config, EFI_LOADED_IMAGE *loaded_ima
                                         cmdline = NULL;
                                 }
                                 FreePool(cmdline);
-                                FreePool(conf);
+                                FreePool(file);
                                 FreePool(path);
                         }
 
                         FreePool(os_name);
+                        FreePool(os_pretty_name);
                         FreePool(os_id);
+                        FreePool(os_id_like);
                         FreePool(os_version);
                         FreePool(os_build);
                         FreePool(content);
