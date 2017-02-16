@@ -1882,14 +1882,11 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
         ZeroMem(&config, sizeof(Config));
         config_load_defaults(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path, loaded_image->ImageBase);
 
-        /* if no entries were load from loader.conf */
-        if (config.entry_count == 0) {
-                /* scan /EFI/Linux/ directory */
-                config_entry_add_linux(&config, loaded_image, root_dir);
+        /* scan /EFI/Linux/ directory */
+        config_entry_add_linux(&config, loaded_image, root_dir);
 
-                /* scan /loader/entries/\*.conf files */
-                config_load_entries(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path);
-        }
+        /* scan /loader/entries/\*.conf files */
+        config_load_entries(&config, loaded_image->DeviceHandle, root_dir, loaded_image_path);
 
         /* sort entries after version number */
         config_sort_entries(&config);
