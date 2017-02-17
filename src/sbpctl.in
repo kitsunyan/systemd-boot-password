@@ -8,18 +8,7 @@ EFI_SYSTEMD="/EFI/systemd/systemd-boot$EFI_MACHINE_TYPE_NAME.efi"
 
 DB_KEY="/etc/sbp/db.key"
 DB_CERT="/etc/sbp/db.crt"
-
-function hash() {
-    printf "%s: " "$1" 1>&2
-    read -s password
-    echo 1>&2
-    filtered=`echo "$password" | grep -Po '[\x00-\x7f]*'`
-    [ "$password" == "$filtered" ] || {
-        echo "Only non-unicode characters are allowed." 1>&2
-        return 1
-    }
-    printf "%s" "$password" | sha512sum | grep -Po [0-9a-fA-F]{128}
-}
+CONFIG="/etc/sbp/loader.conf"
 
 function checkroot() {
     [ "`id -u`" -eq 0 ] || {
@@ -48,71 +37,96 @@ function sign() {
     }
 }
 
+function readargs() {
+    opts_count="$1"
+    vals_count="$2"
+    shift 2
+    declare -A opts_long
+    declare -A opts_short
+    declare -A opts_add_vals
+    for arg in "${@:1:$opts_count}"; do
+        IFS=':' read -a arge <<< "$arg"
+        arg="${arge[0]}"
+        opts_long["$arg"]="$arg"
+        opts_short["${arg:0:1}"]="$arg"
+        [ -n "${arge[1]}" ] && opts_add_vals["$arg"]="${arge[1]}"
+    done
+    shift "$opts_count"
+    opts_end=
+    while arg="$1"; shift; do
+        case "$arg" in
+            --*)
+                [ -n "$opts_end" ] && {
+                    readargs_vals+=("$arg")
+                    continue
+                }
+                [ "$arg" == "--" ] && {
+                    opts_end=1
+                    continue
+                }
+                arg="${arg:2}"
+                [ -n "${opts_long["$arg"]}" ] && {
+                    readargs_opts["$arg"]="$arg"
+                } || {
+                    echo "Unknown attribute: \"$arg\"." 1>&2
+                    return 1
+                }
+                ;;
+            -*)
+                [ -n "$opts_end" ] && {
+                    readargs_vals+=("$arg")
+                    continue
+                }
+                [ "$arg" == "-" ] && {
+                    echo "Unknown attribute: \"-\"." 1>&2
+                    return 1
+                }
+                while arg="${arg:1}"; [ -n "$arg" ]; do
+                    short_arg="${arg:0:1}"
+                    long_arg="${opts_short["$short_arg"]}"
+                    [ -n "$long_arg" ] && {
+                        readargs_opts["$long_arg"]="$long_arg"
+                    } || {
+                        echo "Unknown attribute: \"$short_arg\"." 1>&2
+                        return 1
+                    }
+                done
+                ;;
+            *)
+                readargs_vals+=("$arg")
+                ;;
+        esac
+    done
+    for opt in "${readargs_opts[@]}"; do
+        opt_add_vals="${opts_add_vals["$opt"]}"
+        [ -n "$opt_add_vals" ] && ((vals_count+="$opt_add_vals"))
+    done
+    [ "${#readargs_vals[@]}" -ne "$vals_count" ] && {
+        echo "Invalid arguments count: expected $vals_count, got ${#readargs_vals[@]}." 1>&2
+        return 1
+    }
+    return 0
+}
+
+shopt -s expand_aliases
+alias readargs='unset readargs_opts
+    unset readargs_vals
+    declare -A readargs_opts
+    declare -a readargs_vals
+    readargs'
+
 case "$1" in
-    generate)
-        hash1=`hash "Enter password"` || exit 1
-        hash2=`hash "Retype password"` || exit 1
-        if [ "$hash1" == "$hash2" ]; then
-            echo "password $hash1"
-            exit 0
-        else
-            echo "Passwords do not match." 1>&2
-            exit 1
-        fi
-        ;;
     install)
         shift
         checkroot || exit 1
-        default=
-        include=
-        sign=
-        esp=
-        while arg="$1"; shift; do
-            case "$arg" in
-                --default)
-                    default=1
-                    ;;
-                --include)
-                    include=1
-                    ;;
-                --sign)
-                    sign=1
-                    ;;
-                --*)
-                    echo "Unknown attribute: \"$arg\"." 1>&2
-                    exit 1
-                    ;;
-                -*)
-                    [ "$arg" == "-" ] && {
-                        echo "Unknown attribute: \"$arg\"." 1>&2
-                        exit 1
-                    }
-                    while arg="${arg:1}"; [ -n "$arg" ]; do
-                        case "${arg:0:1}" in
-                            d)
-                                default=1
-                                ;;
-                            i)
-                                include=1
-                                ;;
-                            s)
-                                sign=1
-                                ;;
-                            *)
-                                echo "Unknown attribute: \"$arg\"." 1>&2
-                                exit 1
-                        esac
-                    done
-                    ;;
-                *)
-                    esp="$arg"
-                    ;;
-            esac
-        done
-        config="/etc/sbp/loader.conf"
+        readargs 3 1 default include sign "$@" || exit 1
+        default="${readargs_opts[default]}"
+        include="${readargs_opts[include]}"
+        sign="${readargs_opts[sign]}"
+        esp="${readargs_vals[0]}"
         [ -n "$include" ] && {
-            [ -e "$config" ] || {
-                echo "$config not exists." 1>&2
+            [ -e "$CONFIG" ] || {
+                echo "$CONFIG not exists." 1>&2
                 exit 1
             }
         }
@@ -132,12 +146,12 @@ case "$1" in
             dir=`dirname "$1"`
             [ -d "$dir" ] || mkdir -p "$dir" || {
                 echo "$2" 1>&2
-                exit 1
+                return 1
             }
         }
-        bootmkdir "$esp$EFI_DEFAULT" "Can not create EFI/BOOT directory."
+        bootmkdir "$esp$EFI_DEFAULT" "Can not create EFI/BOOT directory." || exit 1
         [ -n "$include" ] && {
-            objcopy --add-section .config="$config" --change-section-vma .config=0x20000 \
+            objcopy --add-section .config="$CONFIG" --change-section-vma .config=0x20000 \
                 "$efi" "$esp$EFI_DEFAULT" || {
                 echo "Can not copy EFI application." 1>&2
                 exit 1
@@ -152,7 +166,7 @@ case "$1" in
             sign "$esp$EFI_DEFAULT" || exit 1
         }
         [ -z "$default" ] && {
-            bootmkdir "$esp$EFI_SYSTEMD" "Can not create EFI/systemd directory."
+            bootmkdir "$esp$EFI_SYSTEMD" "Can not create EFI/systemd directory." || exit 1
             cp "$esp$EFI_DEFAULT" "$esp$EFI_SYSTEMD" || {
                 echo "Can not copy EFI application." 1>&2
                 exit 1
@@ -162,50 +176,64 @@ case "$1" in
         ;;
     standalone)
         shift
-        sign=
-        initrd=
-        efi=
-        output=
-        while arg="$1"; shift; do
-            case "$arg" in
-                --sign|-s)
-                    sign=1
-                    ;;
-                -*)
-                    echo "Unknown attribute: \"$arg\"." 1>&2
-                    exit 1
-                    ;;
-                *)
-                    [ -n "$initrd" ] && {
-                        [ -n "$efi" ] && {
-                            [ -n "$output" ] && {
-                                echo "Too many arguments." 1>&2
-                                exit 1
-                            } || {
-                                output="$arg"
-                            }
-                        } || {
-                            efi="$arg"
-                        }
-                    } || {
-                        initrd="$arg"
-                    }
-                    ;;
-            esac
-        done
-        [ -n "$initrd" ] && [ -n "$efi" ] && [ -n "$output" ] || {
-            echo "Not enough arguments." 1>&2
-            exit 1
+        readargs 2 3 include:2 sign "$@" || exit 1
+        include="${readargs_opts[include]}"
+        sign="${readargs_opts[sign]}"
+        vals_start=0
+        osrel=
+        cmdline=
+        [ -n "$include" ] && {
+            ((vals_start+=2))
+            osrel="${readargs_vals[0]}"
+            cmdline="${readargs_vals[1]}"
         }
+        initrd="${readargs_vals[(($vals_start))]}"
+        efi="${readargs_vals[(($vals_start+1))]}"
+        output="${readargs_vals[(($vals_start+2))]}"
         [ -n "$sign" ] && {
             checksign || exit 1
         }
-        objcopy --add-section .linux="$efi" --change-section-vma .linux=0x40000 \
-            --add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000 \
-            "$BOOT_LIB_DIR/systemd-boot$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" ||
-            echo "Can not create EFI application." 1>&2
+        [ -n "$include" ] && {
+            objcopy --add-section .osrel="$osrel" --change-section-vma .osrel=0x20000 \
+                --add-section .cmdline="$cmdline" --change-section-vma .cmdline=0x30000 \
+                --add-section .linux="$efi" --change-section-vma .linux=0x40000 \
+                --add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000 \
+                "$BOOT_LIB_DIR/systemd-boot$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" || {
+                echo "Can not create EFI application." 1>&2
+                exit 1
+            }
+        } || {
+            objcopy --add-section .linux="$efi" --change-section-vma .linux=0x40000 \
+                --add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000 \
+                "$BOOT_LIB_DIR/systemd-boot$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" || {
+                echo "Can not create EFI application." 1>&2
+                exit 1
+            }
+        }
         [ -n "$sign" ] && {
             sign "$output" || exit 1
+        }
+        ;;
+    generate)
+        function hash() {
+            printf "%s: " "$1" 1>&2
+            read -s password
+            echo 1>&2
+            filtered=`echo "$password" | grep -Po '[\x00-\x7f]*'`
+            [ "$password" == "$filtered" ] || {
+                echo "Only non-unicode characters are allowed." 1>&2
+                return 1
+            }
+            printf "%s" "$password" | sha512sum | grep -Po [0-9a-fA-F]{128}
+        }
+        hash1=`hash "Enter password"` || exit 1
+        hash2=`hash "Retype password"` || exit 1
+        [ "$hash1" == "$hash2" ] && {
+            echo "password $hash1"
+            exit 0
+        } || {
+            echo "Passwords do not match." 1>&2
+            exit 1
         }
         ;;
     *)
