@@ -34,6 +34,10 @@
       <command>sbpctl</command>
       <arg choice="req">standalone</arg>
       <arg choice="opt" rep="repeat">option</arg>
+      <arg choice="opt">
+        <arg choice="req">osrel</arg>
+        <arg choice="req">cmdline</arg>
+      </arg>
       <arg choice="req">initrd</arg>
       <arg choice="req">efi</arg>
       <arg choice="req">output</arg>
@@ -102,7 +106,9 @@
       <varlistentry>
         <term><option>path</option></term>
         <listitem>
-          <para>Path to the EFI System Partition (ESP).</para>
+          <para>
+            Path to the EFI System Partition (ESP).
+          </para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -112,6 +118,18 @@
     <title>Standalone options</title>
 
     <variablelist>
+      <varlistentry>
+        <term><option>-i</option>, <option>--include</option></term>
+        <listitem>
+          <para>
+            Include os-release and cmdline to EFI binary. This EFI application can be
+            installed at <filename>/EFI/Linux/</filename> without entity configuration.
+            This option requires 2 additional arguments:
+            <option>osrel</option> and <option>cmdline</option>.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry>
         <term><option>-s</option>, <option>--sign</option></term>
         <listitem>
@@ -124,23 +142,49 @@
       </varlistentry>
 
       <varlistentry>
+        <term><option>osrel</option></term>
+        <listitem>
+          <para>
+            Path to os-release file. In most cases you can use <filename>/etc/os-release</filename>.
+            Required only with <option>--include</option> option enabled.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>cmdline</option></term>
+        <listitem>
+          <para>
+            Path to cmdline file. In most cases you can use <filename>/proc/cmdline</filename>.
+            Required only with <option>--include</option> option enabled.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term><option>initrd</option></term>
         <listitem>
-          <para>Path to Linux initramfs.</para>
+          <para>
+            Path to Linux initramfs.
+          </para>
         </listitem>
       </varlistentry>
 
       <varlistentry>
         <term><option>efi</option></term>
         <listitem>
-          <para>Path to Linux EFI application.</para>
+          <para>
+            Path to Linux EFI application.
+          </para>
         </listitem>
       </varlistentry>
 
       <varlistentry>
         <term><option>output</option></term>
         <listitem>
-          <para>Path to output EFI application.</para>
+          <para>
+            Path to output EFI application.
+          </para>
         </listitem>
       </varlistentry>
     </variablelist>
