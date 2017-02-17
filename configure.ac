@@ -31,7 +31,7 @@ AC_CHECK_HEADERS(efi/${EFI_ARCH}/efibind.h, [AC_DEFINE(HAVE_GNUEFI, 1, [Define i
 	[AC_MSG_ERROR([*** gnuefi is required])])
 efiroot=$(echo $(cd /usr/lib/$(${CC} -print-multi-os-directory); pwd))
 EFI_LIB_DIR="$efiroot"
-AC_ARG_WITH(efi-libdir,	AS_HELP_STRING([--with-efi-libdir=PATH], [Path to EFI lib directory]),
+AC_ARG_WITH(efi-libdir, AS_HELP_STRING([--with-efi-libdir=PATH], [Path to EFI lib directory]),
 	[EFI_LIB_DIR="$withval"], [EFI_LIB_DIR="$efiroot"])
 AC_SUBST([EFI_LIB_DIR])
 have_efi_lds=no
@@ -58,14 +58,24 @@ AC_ARG_ENABLE([secure-boot-password], AS_HELP_STRING([--disable-secure-boot-pass
 AC_DEFINE_UNQUOTED([SECURE_BOOT_PASSWORD], `test ! "x$secure_boot_password" != "xfalse"; echo $?`,
 	[Define if Secure Boot password is allowed])
 
+AC_ARG_WITH([bashcompletiondir], AS_HELP_STRING([--with-bashcompletiondir=DIR],
+	[Bash completions directory]), [], [AS_IF([$($PKG_CONFIG --exists bash-completion)],
+	[with_bashcompletiondir=$($PKG_CONFIG --variable=completionsdir bash-completion)],
+	[with_bashcompletiondir=${datadir}/bash-completion/completions])])
+AM_CONDITIONAL(ENABLE_BASH_COMPLETION, [test "$with_bashcompletiondir" != "no"])
+AX_NORMALIZE_PATH([with_bashcompletiondir])
+AC_SUBST([bashcompletiondir], [$with_bashcompletiondir])
+
 AC_OUTPUT
 AC_MSG_RESULT([
 $PACKAGE_NAME $VERSION
 prefix: ${prefix}
+datarootdir: ${datarootdir}
 arch: $EFI_ARCH
 EFI machine type: $MACHINE_TYPE_NAME
 EFI libdir: ${EFI_LIB_DIR}
 EFI ldsdir: ${EFI_LDS_DIR}
 EFI includedir: ${EFI_INC_DIR}
 Allow Secure Boot password: ${secure_boot_password}
+Bash completions dir: ${with_bashcompletiondir}
 ])

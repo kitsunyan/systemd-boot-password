@@ -6,6 +6,7 @@ CLEANFILES =
 
 bootlibdir = $(prefix)/lib/systemd/boot/efi-sbp
 installerdir = $(prefix)/bin
+bashcompletiondir = @bashcompletiondir@
 
 # ------------------------------------------------------------------------------
 
@@ -177,3 +178,12 @@ man/%.1: man/%.xml
 		http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
 
 CLEANFILES += $(man_MANS)
+
+# ------------------------------------------------------------------------------
+
+bashcompletion_data = \
+	completion/bash/sbpctl
+
+if ENABLE_BASH_COMPLETION
+bashcompletion_DATA = $(bashcompletion_data)
+endif

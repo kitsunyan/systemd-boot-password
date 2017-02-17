@@ -1,0 +1,23 @@
+# sbpctl(1) completion                                     -*- shell-script -*-
+
+_sbpctl() {
+    local cur words cword
+    _init_completion || return
+    [ "$cword" -eq 1 ] && {
+        COMPREPLY=( $(compgen -W 'install standalone generate' -- "$cur") )
+    } || {
+        case "${words[1]}" in
+            "generate")
+                COMPREPLY=()
+                ;;
+            "install")
+                _filedir -d
+                ;;
+            "standalone")
+                _filedir
+                ;;
+        esac
+    }
+}
+
+complete -F _sbpctl sbpctl
