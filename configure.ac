@@ -69,7 +69,7 @@ AC_SUBST([bashcompletiondir], [$with_bashcompletiondir])
 
 AC_OUTPUT
 AC_MSG_RESULT([
-$PACKAGE_NAME $VERSION
+$PACKAGE_NAME $PACKAGE_VERSION
 prefix: ${prefix}
 datarootdir: ${datarootdir}
 arch: $EFI_ARCH

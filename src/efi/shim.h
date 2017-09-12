@@ -9,12 +9,23 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * Lesser General Public License for more details.
  *
- * Copyright (C) 2015 Kay Sievers <kay@vrfy.org>
+ * Port to systemd-boot
+ * Copyright 2017 Max Resch <resch.max@gmail.com>
+ *
+ * Security Policy Handling
+ * Copyright 2012 <James.Bottomley@HansenPartnership.com>
+ * https://github.com/mjg59/efitools
  */
 
-#ifndef __SDBOOT_PEFILE_H
-#define __SDBOOT_PEFILE_H
+#ifndef __SDBOOT_SHIM_H
+#define __SDBOOT_SHIM_H
 
-EFI_STATUS pefile_locate_sections(EFI_FILE *dir, CHAR16 *path,
-                                  CHAR8 **sections, UINTN *addrs, UINTN *offsets, UINTN *sizes);
+BOOLEAN shim_loaded(void);
+
+BOOLEAN secure_boot_enabled(void);
+
+EFI_STATUS security_policy_install(void);
+
+EFI_STATUS security_policy_uninstall(void);
+
 #endif

@@ -17,20 +17,18 @@
 #include "disk.h"
 #include "graphics.h"
 #include "linux.h"
-#include "pefile.h"
+#include "measure.h"
+#include "pe.h"
 #include "splash.h"
 #include "util.h"
-#include "measure.h"
 
 /* magic string to find in the binary image */
-static const char __attribute__((used)) magic[] = "#### LoaderInfo: systemd-stub " VERSION " ####";
+static const char __attribute__((used)) magic[] = "#### LoaderInfo: systemd-stub " PACKAGE_VERSION " ####";
 
 static const EFI_GUID global_guid = EFI_GLOBAL_VARIABLE;
 
 EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
         EFI_LOADED_IMAGE *loaded_image;
-        EFI_FILE *root_dir;
-        CHAR16 *loaded_image_path;
         CHAR8 *b;
         UINTN size;
         BOOLEAN secure = FALSE;
@@ -59,22 +57,12 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
                 return err;
         }
 
-        root_dir = LibOpenRoot(loaded_image->DeviceHandle);
-        if (!root_dir) {
-                Print(L"Unable to open root directory: %r ", err);
-                uefi_call_wrapper(BS->Stall, 1, 3 * 1000 * 1000);
-                return EFI_LOAD_ERROR;
-        }
-
-        loaded_image_path = DevicePathToStr(loaded_image->FilePath);
-
         if (efivar_get_raw(&global_guid, L"SecureBoot", &b, &size) == EFI_SUCCESS) {
                 if (*b > 0)
                         secure = TRUE;
                 FreePool(b);
         }
-
-        err = pefile_locate_sections(root_dir, loaded_image_path, sections, addrs, offs, szs);
+        err = pe_memory_locate_sections(loaded_image->ImageBase, sections, addrs, offs, szs);
         if (EFI_ERROR(err)) {
                 Print(L"Unable to locate embedded .linux section: %r ", err);
                 uefi_call_wrapper(BS->Stall, 1, 3 * 1000 * 1000);
@@ -87,7 +75,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
         cmdline_len = szs[0];
 
         /* if we are not in secure boot mode, accept a custom command line and replace the built-in one */
-        if ((!secure || SECURE_BOOT_PASSWORD) && loaded_image->LoadOptionsSize > 0) {
+        if ((!secure || SECURE_BOOT_PASSWORD) && loaded_image->LoadOptionsSize > 0 && *(CHAR16 *)loaded_image->LoadOptions != 0) {
                 CHAR16 *options;
                 CHAR8 *line;
                 UINTN i;
@@ -99,15 +87,14 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
                         line[i] = options[i];
                 cmdline = line;
 
-#ifdef SD_BOOT_LOG_TPM
-                /* Try to log any options to the TPM, escpecially manually edited options */
+#ifdef ENABLE_TPM
+                /* Try to log any options to the TPM, especially manually edited options */
                 err = tpm_log_event(SD_TPM_PCR,
                                     (EFI_PHYSICAL_ADDRESS) loaded_image->LoadOptions,
                                     loaded_image->LoadOptionsSize, loaded_image->LoadOptions);
                 if (EFI_ERROR(err)) {
                         Print(L"Unable to add image options measurement: %r", err);
-                        uefi_call_wrapper(BS->Stall, 1, 3 * 1000 * 1000);
-                        return err;
+                        uefi_call_wrapper(BS->Stall, 1, 200 * 1000);
                 }
 #endif
         }

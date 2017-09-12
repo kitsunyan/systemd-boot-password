@@ -9,10 +9,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * Lesser General Public License for more details.
  *
+ * Copyright (C) 2015 Kay Sievers <kay@vrfy.org>
  */
-#ifndef __SDBOOT_MEASURE_H
-#define __SDBOOT_MEASURE_H
 
-EFI_STATUS tpm_log_event(UINT32 pcrindex, const EFI_PHYSICAL_ADDRESS buffer, UINTN buffer_size, const CHAR16 *description);
+#ifndef __SDBOOT_PEFILE_H
+#define __SDBOOT_PEFILE_H
 
+EFI_STATUS pe_memory_locate_sections(CHAR8 *base,
+                                     CHAR8 **sections, UINTN *addrs, UINTN *offsets, UINTN *sizes);
+EFI_STATUS pe_file_locate_sections(EFI_FILE *dir, CHAR16 *path,
+                                   CHAR8 **sections, UINTN *addrs, UINTN *offsets, UINTN *sizes);
 #endif

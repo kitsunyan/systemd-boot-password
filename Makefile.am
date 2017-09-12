@@ -71,19 +71,21 @@ systemd_boot_headers = \
 	src/efi/util.h \
 	src/efi/console.h \
 	src/efi/graphics.h \
-	src/efi/pefile.h \
+	src/efi/pe.h \
 	src/efi/measure.h \
 	src/efi/disk.h \
+	src/efi/shim.h \
 	src/efi/sha512.h
 
 systemd_boot_sources = \
 	src/efi/util.c \
 	src/efi/console.c \
 	src/efi/graphics.c \
-	src/efi/pefile.c \
+	src/efi/pe.c \
 	src/efi/disk.c \
 	src/efi/measure.c \
 	src/efi/boot.c \
+	src/efi/shim.c \
 	src/efi/sha512.c
 
 systemd_boot_objects = $(addprefix $(top_builddir)/,$(systemd_boot_sources:.c=.o))
@@ -110,7 +112,7 @@ CLEANFILES += $(systemd_boot_objects) $(systemd_boot_solib) $(systemd_boot)
 
 systemd_boot_stub_headers = \
 	src/efi/util.h \
-	src/efi/pefile.h \
+	src/efi/pe.h \
 	src/efi/disk.h \
 	src/efi/graphics.h \
 	src/efi/splash.h \
@@ -119,7 +121,7 @@ systemd_boot_stub_headers = \
 
 systemd_boot_stub_sources = \
 	src/efi/util.c \
-	src/efi/pefile.c \
+	src/efi/pe.c \
 	src/efi/disk.c \
 	src/efi/graphics.c \
 	src/efi/splash.c \

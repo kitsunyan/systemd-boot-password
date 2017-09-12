@@ -21,9 +21,10 @@
 #include "disk.h"
 #include "graphics.h"
 #include "linux.h"
-#include "pefile.h"
-#include "util.h"
 #include "measure.h"
+#include "pe.h"
+#include "shim.h"
+#include "util.h"
 #include "sha512.h"
 
 #ifndef EFI_OS_INDICATIONS_BOOT_TO_FW_UI
@@ -31,7 +32,7 @@
 #endif
 
 /* magic string to find in the binary image */
-static const char __attribute__((used)) magic[] = "#### LoaderInfo: SBP " VERSION " ####";
+static const char __attribute__((used)) magic[] = "#### LoaderInfo: SBP " PACKAGE_VERSION " ####";
 
 static const EFI_GUID global_guid = EFI_GLOBAL_VARIABLE;
 
@@ -427,7 +428,7 @@ static VOID print_status(Config *config, CHAR16 *loaded_image_path) {
         uefi_call_wrapper(ST->ConOut->SetAttribute, 2, ST->ConOut, EFI_LIGHTGRAY|EFI_BACKGROUND_BLACK);
         uefi_call_wrapper(ST->ConOut->ClearScreen, 1, ST->ConOut);
 
-        Print(L"SBP version:            " VERSION "\n");
+        Print(L"SBP version:            " PACKAGE_VERSION "\n");
         Print(L"architecture:           " EFI_MACHINE_TYPE_NAME "\n");
         Print(L"loaded image:           %s\n", loaded_image_path);
         Print(L"UEFI specification:     %d.%02d\n", ST->Hdr.Revision >> 16, ST->Hdr.Revision & 0xffff);
@@ -446,6 +447,9 @@ static VOID print_status(Config *config, CHAR16 *loaded_image_path) {
                 Print(L"SetupMode:              %s\n", *b > 0 ? L"setup" : L"user");
                 FreePool(b);
         }
+
+        if (shim_loaded())
+                Print(L"Shim:                   present\n");
 
         if (efivar_get_raw(&global_guid, L"OsIndicationsSupported", &b, &size) == EFI_SUCCESS) {
                 Print(L"OsIndicationsSupported: %d\n", (UINT64)*b);
@@ -874,7 +878,7 @@ static BOOLEAN menu_run(Config *config, ConfigEntry **chosen_entry, CHAR16 *load
                         break;
 
                 case KEYPRESS(0, 0, 'v'):
-                        status = PoolPrint(L"SBP " VERSION " (" EFI_MACHINE_TYPE_NAME "), UEFI Specification %d.%02d, Vendor %s %d.%02d",
+                        status = PoolPrint(L"SBP " PACKAGE_VERSION " (" EFI_MACHINE_TYPE_NAME "), UEFI Specification %d.%02d, Vendor %s %d.%02d",
                                            ST->Hdr.Revision >> 16, ST->Hdr.Revision & 0xffff,
                                            ST->FirmwareVendor, ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
                         break;
@@ -1251,7 +1255,7 @@ static VOID config_load_defaults(Config *config, EFI_HANDLE *device, EFI_FILE *r
         };
         UINTN addr;
 
-        err = pefile_locate_sections(root_dir, loaded_image_path, sections, &addr, NULL, &len);
+        err = pe_memory_locate_sections(image_base, sections, &addr, NULL, &len);
         if (!EFI_ERROR(err) && len > 0) {
                 content = AllocatePool(len + 1);
                 CopyMem(content, image_base + addr, len);
@@ -1610,7 +1614,7 @@ static VOID config_entry_add_osx(Config *config) {
                         root = LibOpenRoot(handles[i]);
                         if (!root)
                                 continue;
-                        found = config_entry_add_loader_auto(config, handles[i], root, NULL, L"auto-osx", 'a', L"OS X",
+                        found = config_entry_add_loader_auto(config, handles[i], root, NULL, L"auto-osx", 'a', L"macOS",
                                                              L"\\System\\Library\\CoreServices\\boot.efi");
                         uefi_call_wrapper(root->Close, 1, root);
                         if (found)
@@ -1669,7 +1673,7 @@ static VOID config_entry_add_linux( Config *config, EFI_LOADED_IMAGE *loaded_ima
                                 continue;
 
                         /* look for .osrel and .cmdline sections in the .efi binary */
-                        err = pefile_locate_sections(linux_dir, f->FileName, sections, addrs, offs, szs);
+                        err = pe_file_locate_sections(linux_dir, f->FileName, sections, addrs, offs, szs);
                         if (EFI_ERROR(err))
                                 continue;
 
@@ -1794,15 +1798,14 @@ static EFI_STATUS image_start(EFI_HANDLE parent_image, const Config *config, con
                 loaded_image->LoadOptions = options;
                 loaded_image->LoadOptionsSize = (StrLen(loaded_image->LoadOptions)+1) * sizeof(CHAR16);
 
-#ifdef SD_BOOT_LOG_TPM
-                /* Try to log any options to the TPM, escpecially to catch manually edited options */
+#ifdef ENABLE_TPM
+                /* Try to log any options to the TPM, especially to catch manually edited options */
                 err = tpm_log_event(SD_TPM_PCR,
                                     (EFI_PHYSICAL_ADDRESS) loaded_image->LoadOptions,
                                     loaded_image->LoadOptionsSize, loaded_image->LoadOptions);
                 if (EFI_ERROR(err)) {
                         Print(L"Unable to add image options measurement: %r", err);
-                        uefi_call_wrapper(BS->Stall, 1, 3 * 1000 * 1000);
-                        return err;
+                        uefi_call_wrapper(BS->Stall, 1, 200 * 1000);
                 }
 #endif
         }
@@ -1867,7 +1870,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
         InitializeLib(image, sys_table);
         init_usec = time_usec();
         efivar_set_time_usec(L"LoaderTimeInitUSec", init_usec);
-        efivar_set(L"LoaderInfo", L"SBP " VERSION, FALSE);
+        efivar_set(L"LoaderInfo", L"SBP " PACKAGE_VERSION, FALSE);
         s = PoolPrint(L"%s %d.%02d", ST->FirmwareVendor, ST->FirmwareRevision >> 16, ST->FirmwareRevision & 0xffff);
         efivar_set(L"LoaderFirmwareInfo", s, FALSE);
         FreePool(s);
@@ -1894,6 +1897,14 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
                 return EFI_LOAD_ERROR;
         }
 
+        if (secure_boot_enabled() && shim_loaded()) {
+                err = security_policy_install();
+                if (EFI_ERROR(err)) {
+                        Print(L"Error installing security policy: %r ", err);
+                        uefi_call_wrapper(BS->Stall, 1, 3 * 1000 * 1000);
+                        return err;
+                }
+        }
 
         /* the filesystem path to this image, to prevent adding ourselves to the menu */
         loaded_image_path = DevicePathToStr(loaded_image->FilePath);
@@ -1936,7 +1947,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *sys_table) {
 
         config_title_generate(&config);
 
-        /* select entry by configured pattern or EFI LoaderDefaultEntry= variable*/
+        /* select entry by configured pattern or EFI LoaderDefaultEntry= variable */
         config_default_entry_select(&config);
 
         /* if no configured entry to select from was found, enable the menu */
