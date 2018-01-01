@@ -1,3 +1,11 @@
+AM_V_CC = $(am__v_CC_$(V))
+am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
+am__v_CC_0 = @echo "  CC      " $@;
+
+AM_V_CCLD = $(am__v_CCLD_$(V))
+am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+
 CLEANFILES =
 bootlib_DATA =
 
@@ -87,16 +95,16 @@ systemd_boot_solib = systemd_boot.so
 systemd_boot = systemd-boot$(EFI_MACHINE_TYPE_NAME).efi
 
 $(systemd_boot): $(systemd_boot_solib)
-	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic \
-	  -j .dynsym -j .rel -j .rela -j .reloc $(EFI_FORMAT) $< $@
+	$(AM_V_GEN) $(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic \
+	-j .dynsym -j .rel -j .rela -j .reloc $(EFI_FORMAT) $< $@
 
 $(systemd_boot_solib): $(systemd_boot_objects)
-	$(LD) $(efi_ldflags) $(systemd_boot_objects) \
-		-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name);
-	nm -D -u $@ | grep ' U ' && exit 1 || :
+	$(AM_V_CCLD) $(LD) $(efi_ldflags) $(systemd_boot_objects) \
+	-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name);
+	@nm -D -u $@ | grep ' U ' && exit 1 || :
 
 %.o: %.c $(systemd_boot_headers)
-	$(CC) $(efi_cppflags) $(efi_cflags) -c $< -o $@
+	$(AM_V_CC) $(CC) $(efi_cppflags) $(efi_cflags) -c $< -o $@
 
 bootlib_DATA += \
 	$(systemd_boot)
@@ -127,19 +135,19 @@ systemd_boot_stub_sources = \
 
 systemd_boot_stub_objects = $(systemd_boot_stub_sources:.c=.o)
 systemd_boot_stub_solib = systemd_boot_stub.so
-systemd_boot_stub = systemd-boot$(EFI_MACHINE_TYPE_NAME).efi.stub
+systemd_boot_stub = linux$(EFI_MACHINE_TYPE_NAME).efi.stub
 
 $(systemd_boot_stub): $(systemd_boot_stub_solib)
-	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic \
-	  -j .dynsym -j .rel -j .rela -j .reloc $(EFI_FORMAT) $< $@
+	$(AM_V_GEN) $(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic \
+	-j .dynsym -j .rel -j .rela -j .reloc $(EFI_FORMAT) $< $@
 
 $(systemd_boot_stub_solib): $(systemd_boot_stub_objects)
-	$(LD) $(efi_ldflags) $(systemd_boot_stub_objects) \
-		-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name);
-	nm -D -u $@ | grep ' U ' && exit 1 || :
+	$(AM_V_CCLD) $(LD) $(efi_ldflags) $(systemd_boot_stub_objects) \
+	-o $@ -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name)
+	@nm -D -u $@ | grep ' U ' && exit 1 || :
 
 %.o: %.c $(systemd_boot_stub_headers)
-	$(EFI_CC) $(efi_cppflags) $(efi_cflags) -c $< -o $@
+	$(AM_V_CC) $(CC) $(efi_cppflags) $(efi_cflags) -c $< -o $@
 
 bootlib_DATA += \
 	$(systemd_boot_stub)

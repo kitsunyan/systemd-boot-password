@@ -1,7 +1,6 @@
 AC_INIT([systemd-boot-password], [0.9.4.232])
 
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_FILES([
@@ -13,7 +12,7 @@ AC_CONFIG_FILES([
 	src/efi/Makefile
 ])
 
-AM_INIT_AUTOMAKE([foreign 1.11 -Wall -Wno-portability silent-rules tar-pax no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([foreign 1.11 -Wall -Wno-portability tar-pax no-dist-gzip dist-xz])
 AM_SILENT_RULES([yes])
 
 AC_CANONICAL_HOST

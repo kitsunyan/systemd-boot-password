@@ -10,8 +10,8 @@ XSLTPROC_FLAGS = \
 	--stringparam man.copyright.section.enabled 0
 
 %.1: %.xml
-	$(XSLTPROC) -o $@ $(XSLTPROC_FLAGS) \
-		http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
+	$(AM_V_GEN) $(XSLTPROC) -o $@ $(XSLTPROC_FLAGS) \
+	http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl $<
 
 CLEANFILES = \
 	$(man_MANS)
