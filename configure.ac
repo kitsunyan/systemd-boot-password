@@ -1,4 +1,4 @@
-AC_INIT([systemd-boot-password], [0.9.4.232])
+AC_INIT([systemd-boot-password], [0.9.5.236])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
