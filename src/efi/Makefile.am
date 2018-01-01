@@ -6,8 +6,9 @@ AM_V_CCLD = $(am__v_CCLD_$(V))
 am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 
-CLEANFILES =
 bootlib_DATA =
+EXTRA_DIST =
+CLEANFILES =
 
 bootlibdir = \
 	@bootlibdir@
@@ -70,25 +71,26 @@ EFI_FORMAT = --target=efi-app-$(EFI_ARCH)
 endif
 
 systemd_boot_headers = \
-	util.h \
 	console.h \
-	graphics.h \
-	pe.h \
-	measure.h \
 	disk.h \
+	graphics.h \
+	linux.h \
+	measure.h \
+	pe.h \
+	sha512.h \
 	shim.h \
-	sha512.h
+	util.h
 
 systemd_boot_sources = \
-	util.c \
-	console.c \
-	graphics.c \
-	pe.c \
-	disk.c \
-	measure.c \
 	boot.c \
+	console.c \
+	disk.c \
+	graphics.c \
+	measure.c \
+	pe.c \
+	sha512.c \
 	shim.c \
-	sha512.c
+	util.c
 
 systemd_boot_objects = $(systemd_boot_sources:.c=.o)
 systemd_boot_solib = systemd_boot.so
@@ -109,29 +111,33 @@ $(systemd_boot_solib): $(systemd_boot_objects)
 bootlib_DATA += \
 	$(systemd_boot)
 
+EXTRA_DIST += \
+	$(systemd_boot_headers) \
+	$(systemd_boot_sources)
+
 CLEANFILES += \
 	$(systemd_boot_objects) \
 	$(systemd_boot_solib) \
 	$(systemd_boot)
 
 systemd_boot_stub_headers = \
-	util.h \
-	pe.h \
 	disk.h \
 	graphics.h \
-	splash.h \
+	linux.h \
 	measure.h \
-	linux.h
+	pe.h \
+	splash.h \
+	util.h
 
 systemd_boot_stub_sources = \
-	util.c \
-	pe.c \
 	disk.c \
 	graphics.c \
-	splash.c \
 	linux.c \
 	measure.c \
-	stub.c
+	pe.c \
+	splash.c \
+	stub.c \
+	util.c
 
 systemd_boot_stub_objects = $(systemd_boot_stub_sources:.c=.o)
 systemd_boot_stub_solib = systemd_boot_stub.so
@@ -151,6 +157,10 @@ $(systemd_boot_stub_solib): $(systemd_boot_stub_objects)
 
 bootlib_DATA += \
 	$(systemd_boot_stub)
+
+EXTRA_DIST += \
+	$(systemd_boot_stub_headers) \
+	$(systemd_boot_stub_sources)
 
 CLEANFILES += \
 	$(systemd_boot_stub_objects) \

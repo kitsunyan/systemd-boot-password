@@ -4,3 +4,6 @@ SUBDIRS = \
 	completion \
 	man \
 	src
+
+DISTCHECK_CONFIGURE_FLAGS = \
+	--with-bashcompletiondir=$$dc_install_base/$(bashcompletiondir)
