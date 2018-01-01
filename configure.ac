@@ -3,10 +3,17 @@ AC_INIT([systemd-boot-password], [0.9.4.232])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile])
-AC_PREFIX_DEFAULT([/usr/local])
 
-AM_INIT_AUTOMAKE([foreign 1.11 -Wall -Wno-portability silent-rules tar-pax no-dist-gzip dist-xz subdir-objects])
+AC_CONFIG_FILES([
+	Makefile
+	completion/Makefile
+	completion/bash/Makefile
+	man/Makefile
+	src/Makefile
+	src/efi/Makefile
+])
+
+AM_INIT_AUTOMAKE([foreign 1.11 -Wall -Wno-portability silent-rules tar-pax no-dist-gzip dist-xz])
 AM_SILENT_RULES([yes])
 
 AC_CANONICAL_HOST
@@ -67,6 +74,8 @@ AM_CONDITIONAL(ENABLE_BASH_COMPLETION, [test "$with_bashcompletiondir" != "no"])
 AX_NORMALIZE_PATH([with_bashcompletiondir])
 AC_SUBST([bashcompletiondir], [$with_bashcompletiondir])
 
+AC_SUBST([bootlibdir], ["${prefix}/lib/systemd/boot/efi-sbp"])
+
 AC_OUTPUT
 AC_MSG_RESULT([
 $PACKAGE_NAME $PACKAGE_VERSION
@@ -79,4 +88,5 @@ EFI ldsdir: ${EFI_LDS_DIR}
 EFI includedir: ${EFI_INC_DIR}
 Allow Secure Boot password: ${secure_boot_password}
 Bash completions dir: ${with_bashcompletiondir}
+Boot lib dir: ${bootlibdir}
 ])
