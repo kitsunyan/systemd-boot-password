@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1+ */
 /*
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -18,5 +19,5 @@
 EFI_STATUS linux_exec(EFI_HANDLE *image,
                       CHAR8 *cmdline, UINTN cmdline_size,
                       UINTN linux_addr,
-                      UINTN initrd_addr, UINTN initrd_size);
+                      UINTN initrd_addr, UINTN initrd_size, BOOLEAN secure);
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1+ */
 /*
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -1433,10 +1434,29 @@ static VOID config_default_entry_select(Config *config) {
         config->idx_default = -1;
 }
 
+static BOOLEAN find_nonunique(ConfigEntry **entries, UINTN entry_count) {
+        BOOLEAN non_unique = FALSE;
+        UINTN i, k;
+
+        for (i = 0; i < entry_count; i++)
+                entries[i]->non_unique = FALSE;
+
+        for (i = 0; i < entry_count; i++)
+                for (k = 0; k < entry_count; k++) {
+                        if (i == k)
+                                continue;
+                        if (StrCmp(entries[i]->title_show, entries[k]->title_show) != 0)
+                                continue;
+
+                        non_unique = entries[i]->non_unique = entries[k]->non_unique = TRUE;
+                }
+
+        return non_unique;
+}
+
 /* generate a unique title, avoiding non-distinguishable menu entries */
 static VOID config_title_generate(Config *config) {
-        UINTN i, k;
-        BOOLEAN unique;
+        UINTN i;
 
         /* set title */
         for (i = 0; i < config->entry_count; i++) {
@@ -1449,20 +1469,7 @@ static VOID config_title_generate(Config *config) {
                 config->entries[i]->title_show = StrDuplicate(title);
         }
 
-        unique = TRUE;
-        for (i = 0; i < config->entry_count; i++) {
-                for (k = 0; k < config->entry_count; k++) {
-                        if (i == k)
-                                continue;
-                        if (StrCmp(config->entries[i]->title_show, config->entries[k]->title_show) != 0)
-                                continue;
-
-                        unique = FALSE;
-                        config->entries[i]->non_unique = TRUE;
-                        config->entries[k]->non_unique = TRUE;
-                }
-        }
-        if (unique)
+        if (!find_nonunique(config->entries, config->entry_count))
                 return;
 
         /* add version to non-unique titles */
@@ -1477,23 +1484,9 @@ static VOID config_title_generate(Config *config) {
                 s = PoolPrint(L"%s (%s)", config->entries[i]->title_show, config->entries[i]->version);
                 FreePool(config->entries[i]->title_show);
                 config->entries[i]->title_show = s;
-                config->entries[i]->non_unique = FALSE;
         }
 
-        unique = TRUE;
-        for (i = 0; i < config->entry_count; i++) {
-                for (k = 0; k < config->entry_count; k++) {
-                        if (i == k)
-                                continue;
-                        if (StrCmp(config->entries[i]->title_show, config->entries[k]->title_show) != 0)
-                                continue;
-
-                        unique = FALSE;
-                        config->entries[i]->non_unique = TRUE;
-                        config->entries[k]->non_unique = TRUE;
-                }
-        }
-        if (unique)
+        if (!find_nonunique(config->entries, config->entry_count))
                 return;
 
         /* add machine-id to non-unique titles */
@@ -1511,24 +1504,10 @@ static VOID config_title_generate(Config *config) {
                 s = PoolPrint(L"%s (%s)", config->entries[i]->title_show, m);
                 FreePool(config->entries[i]->title_show);
                 config->entries[i]->title_show = s;
-                config->entries[i]->non_unique = FALSE;
                 FreePool(m);
         }
 
-        unique = TRUE;
-        for (i = 0; i < config->entry_count; i++) {
-                for (k = 0; k < config->entry_count; k++) {
-                        if (i == k)
-                                continue;
-                        if (StrCmp(config->entries[i]->title_show, config->entries[k]->title_show) != 0)
-                                continue;
-
-                        unique = FALSE;
-                        config->entries[i]->non_unique = TRUE;
-                        config->entries[k]->non_unique = TRUE;
-                }
-        }
-        if (unique)
+        if (!find_nonunique(config->entries, config->entry_count))
                 return;
 
         /* add file name to non-unique titles */
@@ -1798,7 +1777,7 @@ static EFI_STATUS image_start(EFI_HANDLE parent_image, const Config *config, con
                 loaded_image->LoadOptions = options;
                 loaded_image->LoadOptionsSize = (StrLen(loaded_image->LoadOptions)+1) * sizeof(CHAR16);
 
-#ifdef ENABLE_TPM
+#if ENABLE_TPM
                 /* Try to log any options to the TPM, especially to catch manually edited options */
                 err = tpm_log_event(SD_TPM_PCR,
                                     (EFI_PHYSICAL_ADDRESS) loaded_image->LoadOptions,
