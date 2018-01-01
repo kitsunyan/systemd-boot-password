@@ -6,7 +6,7 @@ systemd-boot-password is systemd-boot boot manager with password-protected edito
 
 The `gnu-efi` library, `docbook-xsl` and GNU autotools should be installed.
 
-Run `./autogen.sh && ./configure && make && sudo make install` to build and install systemd-boot-password to your system.
+Run `./autogen.sh && make && sudo make install` to build and install systemd-boot-password to your system.
 
 Arch Linux users can install [`systemd-boot-password`](https://aur.archlinux.org/packages/systemd-boot-password) package from AUR.
 

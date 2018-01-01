@@ -1,2 +1,4 @@
 #!/bin/sh
-autoreconf -v --force --install
+autoreconf -v --force --install && {
+  [ -n "$NOCONFIGURE" ] || ./configure "$@"
+}
