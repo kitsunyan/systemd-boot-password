@@ -259,6 +259,17 @@ case "$1" in
     }
     initrd="${extractargs_vals[0]}"
 
+    remove_initrd=false
+    [ "${#extractargs_vals[@]}" -ge 2 ] && {
+      remove_initrd=true
+      initrd="/tmp/.sbp-initrd-`date +%s%N`"
+      cat "${extractargs_vals[@]}" > "$initrd" || {
+        rm "$initrd"
+        echo 'Can not create initrd.' >&2
+        exit 1
+      }
+    }
+
     extractargs osrel
     osrel="${extractargs_vals[0]}"
 
@@ -276,9 +287,11 @@ case "$1" in
     objcmd+=(--add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000)
 
     objcopy "${objcmd[@]}" "$BOOT_LIB_DIR/linux$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" || {
+      "$remove_initrd" && rm "$initrd"
       echo 'Can not create EFI application.' >&2
       exit 1
     }
+    "$remove_initrd" && rm "$initrd"
 
     [ -n "$sign" ] && {
       sign "$output" || exit 1

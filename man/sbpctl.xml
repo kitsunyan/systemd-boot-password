@@ -141,7 +141,7 @@
         <term><option>-i</option> <replaceable>initrd</replaceable>, <option>--initrd</option>=<replaceable>initrd</replaceable></term>
         <listitem>
           <para>
-            Path to Linux initramfs.
+            Path to initrd. You can specify multiple <option>--initrd</option> options.
           </para>
         </listitem>
       </varlistentry>
