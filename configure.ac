@@ -77,11 +77,11 @@ AC_SUBST([bootlibdir], ["${prefix}/lib/systemd/boot/efi-sbp"])
 
 AC_OUTPUT
 AC_MSG_RESULT([
-$PACKAGE_NAME $PACKAGE_VERSION
+$PACKAGE_NAME ${PACKAGE_VERSION}
 prefix: ${prefix}
 datarootdir: ${datarootdir}
-arch: $EFI_ARCH
-EFI machine type: $MACHINE_TYPE_NAME
+arch: ${EFI_ARCH}
+EFI machine type: ${EFI_MACHINE_TYPE_NAME}
 EFI libdir: ${EFI_LIB_DIR}
 EFI ldsdir: ${EFI_LDS_DIR}
 EFI includedir: ${EFI_INC_DIR}
