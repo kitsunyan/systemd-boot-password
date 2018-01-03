@@ -13,9 +13,11 @@ _sbpctl() {
         ;;
       'install')
         _filedir -d
+        COMPREPLY+=( $( compgen -W '-i -d -s --include --default --sign' -- "$cur" ) )
         ;;
       'standalone')
         _filedir
+        COMPREPLY+=( $( compgen -W '-o -c -i -s --osrel --cmdline --initrd --sign' -- "$cur" ) )
         ;;
     esac
   }
