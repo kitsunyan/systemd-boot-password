@@ -18,7 +18,7 @@ In `$esp/loader/loader.conf` you can add `editor 1` to enable kernel parameters 
 
 For password protection, run `sbpctl generate` and enter desired password. This tool will generate SHA-512 hash sum which you can add to `loader.conf` file: `password $sha512sum`. Boot manager will prompt password when you try to open editor with `e` key.
 
-You can create a standalone EFI application with Linux EFI and initramfs: `sudo sbpctl standalone /boot/initramfs-linux.img /boot/vmlinuz-linux $esp/linux.efi`.
+You can create a standalone EFI application with Linux EFI and initramfs: `sudo sbpctl standalone --initrd /boot/initramfs-linux.img /boot/vmlinuz-linux $esp/linux.efi`.
 
 You can create a single `loader.conf` file with all entries, divided by empty line:
 

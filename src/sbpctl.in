@@ -45,16 +45,23 @@ function readargs() {
 
   declare -A opts_long
   declare -A opts_short
-  declare -A opts_add_vals
+  declare -A opts_with_val
 
   for arg in "${@:1:$opts_count}"; do
     IFS=':' read -a arge <<< "$arg"
     arg="${arge[0]}"
     opts_long["$arg"]="$arg"
-    opts_short["${arg:0:1}"]="$arg"
 
-    [ -n "${arge[1]}" ] &&
-    opts_add_vals["$arg"]="${arge[1]}"
+    for arg_opt in `seq 1 $((${#arge[@]} - 1))`; do
+      case "${arge["$arg_opt"]}" in
+        s)
+          opts_short["${arg:0:1}"]="$arg"
+          ;;
+        v)
+          opts_with_val["$arg"]=1
+          ;;
+      esac
+    done
   done
 
   shift "$opts_count"
@@ -74,8 +81,26 @@ function readargs() {
         }
 
         arg="${arg:2}"
+        opt_val="$1"
+        opt_val_no_shift=false
+        grep -q '=' <<< "$arg" && {
+          opt_val="`sed 's/^[^=]*=//' <<< "$arg"`"
+          arg="`sed 's/=.*$//' <<< "$arg"`"
+          opt_val_no_shift=true
+        }
+
         [ -n "${opts_long["$arg"]}" ] && {
-          readargs_opts["$arg"]="$arg"
+          [ -n "${opts_with_val["$arg"]}" ] && {
+            { "$opt_val_no_shift" || shift; } || {
+              echo "No value provided for \"$arg\"" >&2
+              return 1
+            }
+
+            readargs_opts["$arg"]="${readargs_opts["$arg"]} ${#readargs_opt_vals[@]}"
+            readargs_opt_vals+=("$opt_val")
+          } || {
+            readargs_opts["$arg"]="$arg"
+          }
         } || {
           echo "Unknown attribute: \"$arg\"." >&2
           return 1
@@ -97,7 +122,18 @@ function readargs() {
           long_arg="${opts_short["$short_arg"]}"
 
           [ -n "$long_arg" ] && {
-            readargs_opts["$long_arg"]="$long_arg"
+            [ -n "${opts_with_val["$long_arg"]}" ] && {
+              opt_val="$1"
+              { shift && [ -z "${arg:1}" ]; } || {
+                echo "No value provided for \"$short_arg\"" >&2
+                return 1
+              }
+
+              readargs_opts["$long_arg"]="${readargs_opts["$long_arg"]} ${#readargs_opt_vals[@]}"
+              readargs_opt_vals+=("$opt_val")
+            } || {
+              readargs_opts["$long_arg"]="$long_arg"
+            }
           } || {
             echo "Unknown attribute: \"$short_arg\"." >&2
             return 1
@@ -110,12 +146,6 @@ function readargs() {
     esac
   done
 
-  for opt in "${readargs_opts[@]}"; do
-    opt_add_vals="${opts_add_vals["$opt"]}"
-    [ -n "$opt_add_vals" ] &&
-    ((vals_count+="$opt_add_vals"))
-  done
-
   [ "${#readargs_vals[@]}" -ne "$vals_count" ] && {
     echo "Invalid arguments count: expected $vals_count, got ${#readargs_vals[@]}." >&2
     return 1
@@ -124,18 +154,31 @@ function readargs() {
   return 0
 }
 
+function extractargs() {
+  for index in ${readargs_opts["$1"]}; do
+    extractargs_vals+=("${readargs_opt_vals["$index"]}")
+  done
+}
+
 shopt -s expand_aliases
+
 alias readargs='unset readargs_opts
+unset readargs_opt_vals
 unset readargs_vals
 declare -A readargs_opts
+declare -a readargs_opt_vals
 declare -a readargs_vals
 readargs'
+
+alias extractargs='unset extractargs_vals
+declare -a extractargs_vals
+extractargs'
 
 case "$1" in
   install)
     shift
     checkroot || exit 1
-    readargs 3 1 default include sign "$@" || exit 1
+    readargs 3 1 default:s include:s sign:s "$@" || exit 1
 
     default="${readargs_opts[default]}"
     include="${readargs_opts[include]}"
@@ -203,44 +246,38 @@ case "$1" in
     ;;
   standalone)
     shift
-    readargs 2 3 include:2 sign "$@" || exit 1
+    readargs 4 2 sign:s initrd:s:v osrel:s:v cmdline:s:v "$@" || exit 1
 
-    include="${readargs_opts[include]}"
     sign="${readargs_opts[sign]}"
+    efi="${readargs_vals[0]}"
+    output="${readargs_vals[1]}"
 
-    vals_start=0
-    osrel=
-    cmdline=
-    [ -n "$include" ] && {
-      ((vals_start+=2))
-      osrel="${readargs_vals[0]}"
-      cmdline="${readargs_vals[1]}"
+    extractargs initrd
+    [ "${#extractargs_vals[@]}" = 0 ] && {
+      echo 'You should specify initrd.' >&2
+      exit 1
     }
+    initrd="${extractargs_vals[0]}"
 
-    initrd="${readargs_vals[(($vals_start))]}"
-    efi="${readargs_vals[(($vals_start+1))]}"
-    output="${readargs_vals[(($vals_start+2))]}"
+    extractargs osrel
+    osrel="${extractargs_vals[0]}"
+
+    extractargs cmdline
+    cmdline="${extractargs_vals[0]}"
 
     [ -n "$sign" ] && {
       checksign || exit 1
     }
 
-    [ -n "$include" ] && {
-      objcopy --add-section .osrel="$osrel" --change-section-vma .osrel=0x20000 \
-      --add-section .cmdline="$cmdline" --change-section-vma .cmdline=0x30000 \
-      --add-section .linux="$efi" --change-section-vma .linux=0x40000 \
-      --add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000 \
-      "$BOOT_LIB_DIR/linux$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" || {
-        echo 'Can not create EFI application.' >&2
-        exit 1
-      }
-    } || {
-      objcopy --add-section .linux="$efi" --change-section-vma .linux=0x40000 \
-      --add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000 \
-      "$BOOT_LIB_DIR/linux$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" || {
-        echo 'Can not create EFI application.' >&2
-        exit 1
-      }
+    objcmd=()
+    [ -n "$osrel" ] && objcmd+=(--add-section .osrel="$osrel" --change-section-vma .osrel=0x20000)
+    [ -n "$cmdline" ] && objcmd+=(--add-section .cmdline="$cmdline" --change-section-vma .cmdline=0x30000)
+    objcmd+=(--add-section .linux="$efi" --change-section-vma .linux=0x40000)
+    objcmd+=(--add-section .initrd="$initrd" --change-section-vma .initrd=0x3000000)
+
+    objcopy "${objcmd[@]}" "$BOOT_LIB_DIR/linux$EFI_MACHINE_TYPE_NAME.efi.stub" "$output" || {
+      echo 'Can not create EFI application.' >&2
+      exit 1
     }
 
     [ -n "$sign" ] && {

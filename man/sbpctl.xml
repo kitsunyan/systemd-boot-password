@@ -24,28 +24,25 @@
 
   <refsynopsisdiv>
     <cmdsynopsis>
-      <command>sbpctl</command>
-      <arg choice="req">install</arg>
-      <arg choice="opt" rep="repeat">option</arg>
-      <arg choice="req">path</arg>
+      <command>sbpctl install</command>
+      <arg choice="opt"><option>-i</option></arg>
+      <arg choice="opt"><option>-d</option></arg>
+      <arg choice="opt"><option>-s</option></arg>
+      <arg choice="plain"><replaceable>path</replaceable></arg>
     </cmdsynopsis>
 
     <cmdsynopsis>
-      <command>sbpctl</command>
-      <arg choice="req">standalone</arg>
-      <arg choice="opt" rep="repeat">option</arg>
-      <arg choice="opt">
-        <arg choice="req">osrel</arg>
-        <arg choice="req">cmdline</arg>
-      </arg>
-      <arg choice="req">initrd</arg>
-      <arg choice="req">efi</arg>
-      <arg choice="req">output</arg>
+      <command>sbpctl standalone</command>
+      <arg choice="opt"><option>-o</option> <replaceable>osrel</replaceable></arg>
+      <arg choice="opt"><option>-c</option> <replaceable>cmdline</replaceable></arg>
+      <arg choice="opt"><option>-i</option> <replaceable>initrd</replaceable></arg>
+      <arg choice="opt"><option>-s</option></arg>
+      <arg choice="plain"><replaceable>efi</replaceable></arg>
+      <arg choice="plain"><replaceable>output</replaceable></arg>
     </cmdsynopsis>
 
     <cmdsynopsis>
-      <command>sbpctl</command>
-      <arg choice="req">generate</arg>
+      <command>sbpctl generate</command>
     </cmdsynopsis>
   </refsynopsisdiv>
 
@@ -119,13 +116,32 @@
 
     <variablelist>
       <varlistentry>
-        <term><option>-i</option>, <option>--include</option></term>
+        <term><option>-o</option> <replaceable>osrel</replaceable>, <option>--osrel</option>=<replaceable>osrel</replaceable></term>
         <listitem>
           <para>
-            Include os-release and cmdline to EFI binary. This EFI application can be
-            installed at <filename>/EFI/Linux/</filename> without entity configuration.
-            This option requires 2 additional arguments:
-            <option>osrel</option> and <option>cmdline</option>.
+            Include os-release to EFI binary. In most cases you can use <filename>/etc/os-release</filename>.
+            With both <option>--osrel</option> and <option>--cmdline</option> provided
+            EFI application can be installed at <filename>/EFI/Linux/</filename> without entry configuration.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-c</option> <replaceable>cmdline</replaceable>, <option>--cmdline</option>=<replaceable>cmdline</replaceable></term>
+        <listitem>
+          <para>
+            Include cmdline to EFI binary. In most cases you can use <filename>/proc/cmdline</filename>.
+            With both <option>--osrel</option> and <option>--cmdline</option> provided
+            EFI application can be installed at <filename>/EFI/Linux/</filename> without entry configuration.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-i</option> <replaceable>initrd</replaceable>, <option>--initrd</option>=<replaceable>initrd</replaceable></term>
+        <listitem>
+          <para>
+            Path to Linux initramfs.
           </para>
         </listitem>
       </varlistentry>
@@ -137,35 +153,6 @@
             EFI application will be signed with keys located at
             <filename>/etc/sbp/db.key</filename> and <filename>/etc/sbp/db.crt</filename>
             using <command>sbsign</command> util.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>osrel</option></term>
-        <listitem>
-          <para>
-            Path to os-release file. In most cases you can use <filename>/etc/os-release</filename>.
-            Required only with <option>--include</option> option enabled.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>cmdline</option></term>
-        <listitem>
-          <para>
-            Path to cmdline file. In most cases you can use <filename>/proc/cmdline</filename>.
-            Required only with <option>--include</option> option enabled.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
-        <term><option>initrd</option></term>
-        <listitem>
-          <para>
-            Path to Linux initramfs.
           </para>
         </listitem>
       </varlistentry>
@@ -205,7 +192,7 @@
         <term><option>default</option></term>
         <listitem>
           <para>
-            Default entry to select. This options can take a name of entity
+            Default entry to select. This options can take a name of entry
             configuration file or <replaceable>entryINDEX</replaceable>
             if entry is included to basic configuration file.
           </para>
