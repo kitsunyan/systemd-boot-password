@@ -251,9 +251,9 @@ case "$1" in
     ;;
   generate)
     function hash() {
-      echo -n "$1: " >&2
+      echo -n "$1: " > /dev/tty
       read -s password
-      echo >&2
+      echo > /dev/tty
 
       filtered=`echo "$password" | grep -Po '[\x00-\x7f]*'`
       [ "$password" = "$filtered" ] || {
